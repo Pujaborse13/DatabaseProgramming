@@ -1,0 +1,233 @@
+
+--> What is a Database?
+A Database is an organized collection of structured data.
+Used to store, manage, and retrieve data efficiently.
+
+-->SQL Server is a Relational Database Management System (RDBMS) developed by Microsoft.
+Used to create, manage databases and perform CRUD (Create, Read, Update, Delete) 
+operations using SQL (Structured Query Language).
+
+--> 1. Database Components
+	Tables: Store data in rows and columns.
+	Schemas: Logical containers to group objects like tables and views.
+	Constraints: Rules to maintain data integrity (Primary Key, Foreign Key).
+	Indexes: Improve search performance.
+	Stored Procedures: SQL code saved for reuse.
+	Views: Virtual tables based on SQL queries.
+
+
+-->2.Basic SQL Commands
+		Command Type						Examples
+		DDL (Data Definition Language)		CREATE, ALTER, DROP
+		DML (Data Manipulation Language)	INSERT, UPDATE, DELETE
+		DQL (Data Query Language)			SELECT
+		DCL (Data Control Language)			GRANT, REVOKE
+		TCL (Transaction Control Language)	COMMIT, ROLLBACK, SAVEPOINT
+
+-- Create Database
+CREATE DATABASE BikeStores
+
+-- using that database
+USE BikeStores
+
+/* A Schema is a logical container or namespace in a database that holds objects 
+	like: Tables ,Views ,Stored Procedures ,Functions, Indexes, Triggers
+	- It helps organize and manage database objects logically.
+	- Think of a schema like a folder in a computer that
+		contains files (tables, views, etc.).
+
+	- Organizes database objects into logical groups.
+	- Provides security by allowing permissions at the schema level.
+	- Avoids name conflicts when multiple objects have the same name
+		(in different schemas).
+	- Helps in multi-user environments to separate data and objects.
+
+*/
+
+-- create schemas production and sales
+
+CREATE SCHEMA production;
+Go
+
+CREATE SCHEMA sales;
+Go
+
+
+
+-- create tables in Production SCHEMA 
+/* 
+- production.categories: production is the Schema name (a logical container/folder to organize tables)
+  .categories is the Table name.
+	So, this table categories will be created under production schema.
+
+- IDENTITY (1, 1): Makes this column auto-increment.
+				Starts from 1, and increases by 1 for each new record.
+
+- PRIMARY KEY: Uniquely identifies each row in the table.
+				Cannot have NULL or duplicate values.
+
+- VARCHAR(255): Variable-length string that can store up to 255 characters.
+
+- NOT NULL: Value must be provided (cannot be empty or NULL).
+	*/
+
+CREATE TABLE production.categories (
+	category_id INT IDENTITY (1, 1) PRIMARY KEY,   -- auto-increment , Unique values Cannot have NULL or duplicate values
+	category_name VARCHAR (255) NOT NULL   
+);
+
+CREATE TABLE production.brands (
+	brand_id INT IDENTITY (1, 1) PRIMARY KEY,
+	brand_name VARCHAR (255) NOT NULL
+);
+
+CREATE TABLE production.products (
+	product_id INT IDENTITY (1, 1) PRIMARY KEY, -- Auto-incremented unique product ID
+	product_name VARCHAR (255) NOT NULL,		-- Product name, required, up to 255 characters
+	brand_id INT NOT NULL,						-- Foreign key referring to brand (must exist in brands table)           
+	category_id INT NOT NULL,					-- Foreign key referring to category (must exist in categories table)
+	model_year SMALLINT NOT NULL,				-- Year of product model (e.g., 2024)
+	list_price DECIMAL (10, 2) NOT NULL,		-- Product price with 2 decimal places (e.g., 9999.99)
+	
+	FOREIGN KEY (category_id) REFERENCES production.categories (category_id) 
+		ON DELETE CASCADE  
+		ON UPDATE CASCADE,
+
+	FOREIGN KEY (brand_id) REFERENCES production.brands (brand_id) 
+		ON DELETE CASCADE 
+		ON UPDATE CASCADE
+);
+
+
+/*
+SMALLINT:		Small integer (saves space), for storing years (e.g., 2024).
+DECIMAL (10, 2): Number with up to 10 digits total, 2 digits after decimal point.
+NOT NULL:		 Mandatory field, cannot be empty.
+ON DELETE CASCADE :	Automatically delete related products when parent is deleted.
+ON UPDATE CASCADE :	Automatically update related products when parent key changes.
+
+
+References: Links category_id in products to category_id in categories.
+ON DELETE CASCADE: If a category is deleted, all products in that category
+					will also be deleted automatically.
+ON UPDATE CASCADE: If the category_id is updated in categories,
+					it will also update in products.
+
+
+
+*/
+
+
+CREATE TABLE sales.customers (
+	customer_id INT IDENTITY (1, 1) PRIMARY KEY,
+	first_name VARCHAR (255) NOT NULL,
+	last_name VARCHAR (255) NOT NULL,
+	phone VARCHAR (25),
+	email VARCHAR (255) NOT NULL,
+	street VARCHAR (255),
+	city VARCHAR (50),
+	state VARCHAR (25),
+	zip_code VARCHAR (5)
+);
+
+CREATE TABLE sales.stores (
+	store_id INT IDENTITY (1, 1) PRIMARY KEY,
+	store_name VARCHAR (255) NOT NULL,
+	phone VARCHAR (25),
+	email VARCHAR (255),
+	street VARCHAR (255),
+	city VARCHAR (255),
+	state VARCHAR (10),
+	zip_code VARCHAR (5)
+);
+
+CREATE TABLE sales.staffs (
+	staff_id INT IDENTITY (1, 1) PRIMARY KEY,
+	first_name VARCHAR (50) NOT NULL,
+	last_name VARCHAR (50) NOT NULL,
+	email VARCHAR (255) NOT NULL UNIQUE,
+	phone VARCHAR (25),
+	active tinyint NOT NULL,
+	store_id INT NOT NULL,
+	manager_id INT,
+	FOREIGN KEY (store_id) REFERENCES sales.stores (store_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (manager_id) REFERENCES sales.staffs (staff_id) ON DELETE NO ACTION ON UPDATE NO ACTION
+);
+
+CREATE TABLE sales.orders (
+	order_id INT IDENTITY (1, 1) PRIMARY KEY,
+	customer_id INT,
+	order_status tinyint NOT NULL,
+	-- Order status: 1 = Pending; 2 = Processing; 3 = Rejected; 4 = Completed
+	order_date DATE NOT NULL,
+	required_date DATE NOT NULL,
+	shipped_date DATE,
+	store_id INT NOT NULL,
+	staff_id INT NOT NULL,
+	FOREIGN KEY (customer_id) REFERENCES sales.customers (customer_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (store_id) REFERENCES sales.stores (store_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (staff_id) REFERENCES sales.staffs (staff_id) ON DELETE NO ACTION ON UPDATE NO ACTION
+);
+
+CREATE TABLE sales.order_items (
+	order_id INT,
+	item_id INT,
+	product_id INT NOT NULL,
+	quantity INT NOT NULL,
+	list_price DECIMAL (10, 2) NOT NULL,
+	discount DECIMAL (4, 2) NOT NULL DEFAULT 0,
+	PRIMARY KEY (order_id, item_id),
+	FOREIGN KEY (order_id) REFERENCES sales.orders (order_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (product_id) REFERENCES production.products (product_id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE production.stocks (
+	store_id INT,
+	product_id INT,
+	quantity INT,
+	PRIMARY KEY (store_id, product_id),
+	FOREIGN KEY (store_id) REFERENCES sales.stores (store_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (product_id) REFERENCES production.products (product_id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+
+
+
+-- Queries 
+-- Section 1. Querying data
+/* 1. Select 
+
+-- SELECT statement to retrieve the first name, last name, and email of all customers:
+-- result of a query is often called a result set.
+*/
+SELECT first_name, last_name, email
+	FROM sales.customers;
+
+SELECT * FROM sales.customers;
+
+/* -- 2. Sorting data
+-- ORDER BY clause
+The ORDER BY clause allows you to sort the result set of a query 
+by one or more columns.
+use ASC or DESC keyword.
+ASC keyword sorts rows from low to high
+DESC keyword sorts the rows from high to low.
+--   defaults used clause : ASC
+
+Syntax :
+SELECT
+    select_list
+FROM
+    table_name
+ORDER BY 
+    column_name | expression [ASC | DESC ];
+
+*/
+
+
+
+
+
+
+
+
